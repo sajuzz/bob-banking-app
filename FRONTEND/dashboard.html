@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank — Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <style>
+    body { background: #f0f4f8; }
+    .brand { font-size: 1.4rem; font-weight: 700; color: #1a56db; }
+    .balance-card { background: linear-gradient(135deg, #1a56db, #0e9f6e); color: #fff; border-radius: 12px; }
+    .balance-amount { font-size: 2.5rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-light bg-white shadow-sm px-4">
+    <span class="brand">🏦 SecureBank</span>
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-muted" id="welcome-msg">Welcome</span>
+      <button class="btn btn-outline-danger btn-sm" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <!-- Balance Card -->
+    <div class="balance-card p-4 mb-4">
+      <p class="mb-1 opacity-75">Current Balance</p>
+      <div class="balance-amount" id="balance-display">$—</div>
+    </div>
+
+    <div id="alert-msg" class="alert d-none"></div>
+
+    <!-- Actions -->
+    <div class="row g-3">
+      <!-- Deposit -->
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Deposit Funds</h5>
+            <form id="deposit-form">
+              <div class="mb-3">
+                <label class="form-label">Amount ($)</label>
+                <input type="number" class="form-control" id="deposit-amount" min="0.01" step="0.01" placeholder="0.00" required />
+              </div>
+              <button type="submit" class="btn btn-success w-100">Deposit</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Withdraw -->
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Withdraw Funds</h5>
+            <form id="withdraw-form">
+              <div class="mb-3">
+                <label class="form-label">Amount ($)</label>
+                <input type="number" class="form-control" id="withdraw-amount" min="0.01" step="0.01" placeholder="0.00" required />
+              </div>
+              <button type="submit" class="btn btn-warning w-100">Withdraw</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://127.0.0.1:5000/api";
+
+    function showAlert(msg, type) {
+      const el = document.getElementById("alert-msg");
+      el.textContent = msg;
+      el.className = `alert alert-${type}`;
+      el.classList.remove("d-none");
+      setTimeout(() => el.classList.add("d-none"), 4000);
+    }
+
+    async function loadDashboard() {
+      const statusRes = await fetch(`${API}/auth/status`, { credentials: "include" });
+      const status = await statusRes.json();
+      if (!status.logged_in) { window.location.href = "login.html"; return; }
+      document.getElementById("welcome-msg").textContent = `Welcome, ${status.username}`;
+
+      const balRes = await fetch(`${API}/account/balance`, { credentials: "include" });
+      const bal = await balRes.json();
+      document.getElementById("balance-display").textContent = `$${bal.balance.toFixed(2)}`;
+    }
+
+    document.getElementById("logout-btn").addEventListener("click", async () => {
+      await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" });
+      window.location.href = "login.html";
+    });
+
+    document.getElementById("deposit-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById("deposit-amount").value);
+      const res = await fetch(`${API}/account/deposit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("balance-display").textContent = `$${data.balance.toFixed(2)}`;
+        document.getElementById("deposit-amount").value = "";
+        showAlert(data.message, "success");
+      } else {
+        showAlert(data.error, "danger");
+      }
+    });
+
+    document.getElementById("withdraw-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById("withdraw-amount").value);
+      const res = await fetch(`${API}/account/withdraw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("balance-display").textContent = `$${data.balance.toFixed(2)}`;
+        document.getElementById("withdraw-amount").value = "";
+        showAlert(data.message, "success");
+      } else {
+        showAlert(data.error, "danger");
+      }
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>
